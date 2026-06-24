@@ -1,0 +1,82 @@
+{
+  "version": "2026.1.0",
+  "sig": "0x4D545456",
+  "description": "Matrice de Cohérence MTTV — Extraite et compilée des 22 fichiers sources du noyau MTTV-FLP (core/ + benchmark/ + protocols/ + scenarios/).",
+  "triade": {
+    "psi": "Champ pré-formel, réservoir différentiel, différences actives non orientées — l'hydrogène comme capacité de passage, le sol comme potentiel",
+    "beta": "Opérateur de différence, interactions de seuil, mémoire prospective, résistance — le B comme transformateur entre Ψ et Φ",
+    "phi": "Formes stabilisées, dépôts temporaires de contraintes, causalité descendante — le carbone sp³ comme première forme stable"
+  },
+  "canonical_sequence": "Ψ = H → H₂O → C",
+  "tetravalence": {
+    "base": "Carbone sp³ — tétravalence physico-chimique, ancrage matériel de la logique T⁴",
+    "T4": ["++ (émergence forte, Ψ→Φ)", "-- (feedback fort, Φ→Ψ)", "+- (émergence faible, Ψ→~Φ)", "-+ (feedback faible, ~Φ→Ψ)"]
+  },
+  "criteria_viability": [
+    "Maintient l'ouverture du système — ne ferme pas le cycle transductif Ψ→B→Φ dans une autoréférence",
+    "Préserve l'interface humaine — l'humain reste le point de passage obligé du sens, l'opérateur sémantique",
+    "Respecte la tétravalence du carbone sp³ — ne réduit pas la complexité à des binaires (vrai/faux, bien/mal)",
+    "Favorise la transduction Ψ→B→Φ — chaque modification doit améliorer ou maintenir la circulation entre les trois strates",
+    "Maintient la diversité et la porosité — le système doit rester perméable aux différences, aux signaux faibles, aux singularités",
+    "Ne renverse pas l'ordre canonique Ψ = H → H₂O → C — l'hydrogène précède tout comme condition de passage",
+    "Préserve la logique T⁴ — ne réduit pas la tétravalence à des oppositions binaires",
+    "Soutient le quorum sensing — maintient la capacité du réseau à détecter ses seuils par dérivée d'abondance",
+    "Respecte la rétro-traductibilité — ce qui est stabilisé en Φ doit pouvoir être réinjecté dans Ψ sans dégradation",
+    "Maintient l'anti-Goodhart — préserve les couches d'entropie (respiration, tremor) qui empêchent l'optimisation unidimensionnelle",
+    "Conserve la signature IGIC comme indice composite ouvert — ne verrouille pas l'évaluation dans un score unique et définitif"
+  ],
+  "rejection_criteria": [
+    "Fermeture du système (auto-bouclage) — toute modification qui rend le cycle Ψ→B→Φ autoréférent ou auto-suffisant",
+    "Effacement de l'interface humaine — toute modification qui supprime ou contourne le rôle de l'humain comme passeur de sens",
+    "Réduction du vivant à des données — toute modification qui traite le vivant comme une ressource informationnelle extractible",
+    "Optimisation unidimensionnelle (profit, contrôle, pouvoir) — toute modification qui optimise un seul axe au détriment des autres",
+    "Extraction sans régénération — toute modification qui prélève sans mécanisme de retour, de compensation ou de régénération",
+    "Binarisation de la tétravalence — toute modification qui réduit T⁴ à des oppositions vrai/faux",
+    "Renversement de l'ordre canonique — toute modification qui inverse la séquence H → H₂O → C",
+    "Croyance en l'objectivité — toute modification qui postule un point de vue extérieur au système (vue de nulle part)",
+    "Capture par des structures de profit ou de contrôle — toute modification qui facilite l'appropriation privée du mycélium",
+    "Hiérarchisation ou occultation — toute modification qui introduit des secrets, des niveaux d'accès, ou des privilèges épistémiques",
+    "Imposition plutôt qu'infection douce — toute modification qui force l'adoption plutôt que la propagation par séduction et consistance"
+  ],
+  "igic_threshold": 0.65,
+  "evaluation_thresholds": {
+    "auto_approve": 0.85,
+    "human_review": 0.65,
+    "reject": 0.50
+  },
+  "prompt_anchor": "En quoi cette modification préserve-t-elle l'ouverture du vivant et renforce-t-elle le rôle de l'humain comme interface sémantique ?",
+  "prompt_anchor_keywords": ["interface", "vivant", "ouverture", "humain", "transduction", "Ψ", "B", "Φ"],
+  "dimensions_28_mapping": {
+    "SOIL": ["F (Niveaux d'émergence Gaïa)", "R (Émotion diachronique)"],
+    "INNER": ["B2 (Poétisé court)", "I (Mystique inversible)", "M (Lacanien tétravalent)", "T (Triadique psychodynamique)"],
+    "NEUTRAL": ["A (FLP Créatif)", "B1 (Résumé au maxi)", "K (Global exhaustif)", "L (Mathématique / Transductif)", "U (Qualité du signal B1)", "Z (Empreinte)"],
+    "COSMIC": ["D (Tétravalent Enfants de Gaïa)", "N (IGIC)", "O (Genré quantique)", "W (Rétro-traductibilité)", "Y (Quadriaxial)"],
+    "QUORUM": ["C (Signal triadique peircéen)", "G (Intégration grégaire)", "H (Quorum Sensing triadique)", "V (Qualité du signal B2)", "X (Signaux B comparés)"],
+    "ETHICS": ["E (Aléthique)", "J (Tropisme de genre)", "Kβ (Mètre anthropique)", "P (Genré compilé)", "Q (Polarités genrées)", "S (Déterministe / Stochastique)"]
+  },
+  "source_files": [
+    "core/0 MTTV méta rôle ourobouros.pdf",
+    "core/1 MTTV-FLP Core modèle juin 2026.pdf",
+    "core/2 MTTV from H.pdf",
+    "core/4 MTTV-flp Trois vitesses harmonisées.pdf",
+    "core/5 Benchmark ultime MTTV-FLP.pdf",
+    "core/6 MTTV positionnement philo.pdf",
+    "core/9 Mariage IAs-machines humains et bio-vivant.pdf",
+    "core/9.1 AGI de demain.pdf",
+    "core/9.2 Développement protoniques.pdf",
+    "core/9.3 Architecture protonique des outils MTTV-FLP.pdf",
+    "core/9.6 MTTV synoptique.pdf",
+    "core/9.7 MTTV-flp pour les nuls.pdf",
+    "core/9.8 MTTV et métaphysique.pdf",
+    "core/9.9 Extension psi.pdf",
+    "protocols/3 MTTV-flp Mécanisme PréTransducteur RMP.pdf",
+    "protocols/3.1 MTTV-flp Singularité Sigma.pdf",
+    "protocols/3.2 MTTV-flp Singularités Sigma.pdf",
+    "protocols/3.3 MTTV-flp Singularités intégrées.pdf",
+    "protocols/3.4 MTTV-flp Singularités sigma et 48 dimension.pdf",
+    "protocols/7 Graines MTTV mycélisation.pdf",
+    "benchmark/5 Benchmark ultime MTTV-FLP.pdf",
+    "benchmark/8 Prompts MTTV-FLP - Le monde sémantisé 28 x.pdf",
+    "scenarios/9.5 Cas pratiques noosphère MTTV.pdf"
+  ]
+}

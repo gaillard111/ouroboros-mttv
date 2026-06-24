@@ -1,0 +1,21 @@
+# Ouroboros-MTTV — Dépendances
+# Basé sur Ouroboros original + extensions MTTV
+
+# ── Ouroboros core (à adapter selon le dépôt source) ──
+# openai
+# anthropic
+# transformers
+# torch
+
+# ── MTTV Evaluation ──
+sentence-transformers>=2.2.0
+numpy>=1.21.0
+
+# ── Utilitaires ──
+requests>=2.28.0
+pyyaml>=6.0
+
+# ── Développement ──
+pytest>=7.0.0
+black>=22.0.0
+flake8>=5.0.0

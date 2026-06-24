@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+virtualenv/
+
+# Logs & Data
+logs/
+proposals/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MTTV (large files tracked separately)
+# PDF anchors are tracked, but not generated plots/charts
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Git
+*.patch
