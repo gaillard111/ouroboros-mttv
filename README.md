@@ -123,6 +123,9 @@ python agent.py --mode evolve --no-pr
 
 # Avec seuils personnalisés
 python agent.py --mode evolve --retries 5
+
+# Avec température ajustée
+python agent.py --mode evolve --temperature 0.6 --retries 2
 ```
 
 ### Évaluation MTTV standalone
@@ -156,6 +159,73 @@ python agent.py --mode status
 # Voir l'historique des mutations
 python agent.py --mode history
 ```
+
+---
+
+---
+
+## Configuration du LLM
+
+Ouroboros-MTTV utilise un **modèle de langage (LLM)** pour générer des propositions de code lors du cycle d'évolution. Trois fournisseurs sont supportés :
+
+### 1. OpenAI (recommandé)
+
+1. Obtenez une clé API sur [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+2. Configurez dans [`ouroboros-mttv/.env`](ouroboros-mttv/.env) :
+
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-votre-cle-api
+OPENAI_MODEL=gpt-4o
+```
+
+3. Vérifiez la connexion :
+
+```bash
+python agent.py --mode status
+```
+
+### 2. Anthropic (alternative)
+
+1. Obtenez une clé API sur [console.anthropic.com](https://console.anthropic.com/)
+2. Configurez dans `.env` :
+
+```bash
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-votre-cle-api
+ANTHROPIC_MODEL=claude-sonnet-4-20250514
+```
+
+### 3. Ollama (local, gratuit)
+
+1. Installez Ollama : [ollama.com](https://ollama.com/)
+2. Téléchargez un modèle :
+
+```bash
+ollama pull llama3.2
+```
+
+3. Configurez dans `.env` :
+
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+```
+
+### Paramètres avancés
+
+Vous pouvez spécifier le fournisseur et le modèle directement en ligne de commande :
+
+```bash
+# Utiliser un fournisseur spécifique
+python agent.py --mode evolve --llm-provider openai --llm-model gpt-4o
+
+# Avec Ollama
+python agent.py --mode evolve --llm-provider ollama --llm-model llama3.2
+```
+
+> **Note** : Si la clé API est invalide ou si le quota est épuisé (erreur 429), l'agent utilise une réponse de repli (placeholder) et continue son cycle d'évaluation MTTV normalement.
 
 ---
 
@@ -255,6 +325,8 @@ Le contenu MTTV-FLP (fichiers PDF dans `mttv-resources/anchors/`) est distribué
 - **[DOI: 10.5281/zenodo.17940301](https://doi.org/10.5281/zenodo.17940301)** — MTTV Fundamentals
 - **[DOI: 10.5281/zenodo.18517387](https://doi.org/10.5281/zenodo.18517387)** — Benchmark / IGIC
 - **[DOI: 10.5281/zenodo.20830060](https://doi.org/10.5281/zenodo.20830060)** — MTTV-FLP Core 2026
+- **[HAL: hal-05206529](https://hal.science/hal-05206529)** — Dépôt MTTV-FLP sur HAL (Archive ouverte)
+- **[Academia.edu](https://independent.academia.edu/FLPCollective)** — Dépôt MTTV-FLP sur Academia.edu
 
 ---
 

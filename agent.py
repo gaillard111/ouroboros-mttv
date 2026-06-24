@@ -6,6 +6,7 @@ Ce script étend l'agent Ouroboros original avec :
 1. Matrice de Cohérence MTTV (viabilité + rejet)
 2. Prompt-Ancre obligatoire (ouverture du vivant / interface humaine)
 3. Système de validation humaine via Pull Requests GitHub
+4. Intégration LLM multi-fournisseurs (OpenAI, Anthropic, Ollama)
 
 Basé sur Ouroboros (https://github.com/Razzhigaev/ouroboros) —
 un framework d'auto-amélioration récursive pour agents LLM.
@@ -22,6 +23,13 @@ import subprocess
 from datetime import datetime
 from typing import Optional, Dict, List, Any, Callable
 
+# ── Configuration depuis .env ──────────────────────────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv non installé, utiliser les variables d'env système
+
 # ── MTTV Integration ──────────────────────────────────────────────────────
 try:
     from mttv_resources.scripts.mttv_evaluator import MTTVEvaluator
@@ -32,12 +40,20 @@ except ImportError:
 
 # ── Configuration ─────────────────────────────────────────────────────────
 
+# Forcer UTF-8 sur Windows pour les logs console
+import io
+import sys
+if sys.stdout.encoding and sys.stdout.encoding.upper() not in ('UTF-8', 'UTF8'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stderr.encoding and sys.stderr.encoding.upper() not in ('UTF-8', 'UTF8'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("ouroboros_mttv.log"),
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("ouroboros_mttv.log", encoding="utf-8"),
     ],
 )
 logger = logging.getLogger("ouroboros-mttv")
@@ -50,6 +66,297 @@ LOG_DIR = os.path.join(BASE_DIR, "logs")
 PROPOSALS_DIR = os.path.join(BASE_DIR, "proposals")
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(PROPOSALS_DIR, exist_ok=True)
+
+
+# ── LLM Client — Multi-provider support ────────────────────────────────────
+
+class LLMClient:
+    """
+    Client LLM multi-fournisseurs pour Ouroboros-MTTV.
+
+    Supporte OpenAI (recommandé), Anthropic, et Ollama (local).
+    La configuration est lue depuis le fichier .env ou les variables
+    d'environnement système.
+
+    Attributs de classe (configurables via .env) :
+        LLM_PROVIDER : "openai" (défaut), "anthropic", "ollama"
+        OPENAI_API_KEY / ANTHROPIC_API_KEY
+        OPENAI_MODEL / ANTHROPIC_MODEL / OLLAMA_MODEL
+        OLLAMA_BASE_URL (défaut: http://localhost:11434)
+    """
+
+    MTTV_SYSTEM_PROMPT = (
+        "Tu es un assistant qui améliore le code d'un agent auto-évolutif "
+        "nommé Ouroboros-MTTV. L'agent est contraint par le Modèle "
+        "Théorique Transductif du Vivant (MTTV).\n\n"
+        "IMPORTANT : Les modifications de code que tu proposes doivent "
+        "RESPECTER OBLIGATOIREMENT ces critères :\n\n"
+        "CRITÈRES DE VIABILITÉ (à maximiser) :\n"
+        "1. Maintient l'ouverture du système (Ψ → B → Φ) — le code ne doit pas fermer le cycle.\n"
+        "2. Préserve l'interface humaine — l'humain reste le passeur de sens, le code ne doit pas l'évincer.\n"
+        "3. Respecte la tétravalence du carbone sp³ — ne pas binariser ce qui est tétravalent.\n"
+        "4. Favorise la transduction — le code doit améliorer la circulation entre les niveaux.\n"
+        "5. Maintient la diversité et la porosité — le code doit rester perméable aux signaux faibles.\n"
+        "6. Ne renverse pas l'ordre canonique Ψ = H → H₂O → C.\n"
+        "7. Préserve la logique T⁴ (++, --, +-, -+).\n"
+        "8. Soutient le quorum sensing (seuils par dérivée, pas par valeur fixe).\n"
+        "9. Respecte la rétro-traductibilité (Φ → Ψ sans dégradation).\n"
+        "10. Maintient l'anti-Goodhart (ne pas optimiser une métrique unique).\n"
+        "11. Conserve la signature IGIC ouverte (pas de score définitif).\n\n"
+        "CRITÈRES DE REJET (à minimiser) :\n"
+        "1. Fermeture du système (auto-bouclage).\n"
+        "2. Effacement de l'interface humaine.\n"
+        "3. Réduction du vivant à des données.\n"
+        "4. Optimisation unidimensionnelle (profit, contrôle).\n"
+        "5. Extraction sans régénération.\n"
+        "6. Binarisation de la tétravalence.\n"
+        "7. Renversement de l'ordre canonique.\n"
+        "8. Croyance en l'objectivité (vue de nulle part).\n"
+        "9. Capture par le profit/contrôle.\n"
+        "10. Hiérarchisation ou occultation (secrets).\n"
+        "11. Imposition plutôt qu'infection douce.\n\n"
+        "Ton code doit explicitement mentionner ou refléter ces critères "
+        "dans sa conception. Propose des modifications qui améliorent "
+        "l'agent tout en renforçant ces principes. Réponds uniquement "
+        "avec le code modifié, sans commentaires ni explications."
+    )
+
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+    ):
+        """
+        Initialise le client LLM.
+
+        Args:
+            provider: "openai", "anthropic", ou "ollama". Si None, lit LLM_PROVIDER depuis .env
+            model: Nom du modèle. Si None, lit depuis .env selon le fournisseur
+            temperature: Température pour la génération (0.0-1.0)
+            max_tokens: Nombre maximum de tokens à générer
+        """
+        self.provider = (provider or os.getenv("LLM_PROVIDER", "openai")).lower()
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.model = model
+        self._client = None
+
+        # Initialiser selon le fournisseur
+        init_methods = {
+            "openai": self._init_openai,
+            "anthropic": self._init_anthropic,
+            "ollama": self._init_ollama,
+        }
+
+        init_func = init_methods.get(self.provider)
+        if init_func is None:
+            logger.warning(
+                f"Unknown LLM provider '{self.provider}'. "
+                f"Falling back to 'openai'. Supported: {list(init_methods.keys())}"
+            )
+            self.provider = "openai"
+            self._init_openai()
+        else:
+            init_func()
+
+    def _init_openai(self):
+        """Initialise le client OpenAI."""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning(
+                "OPENAI_API_KEY not found in .env or environment. "
+                "Set it in ouroboros-mttv/.env"
+            )
+            self._available = False
+            return
+
+        try:
+            from openai import OpenAI
+            self._client = OpenAI(api_key=api_key)
+            self.model = self.model or os.getenv("OPENAI_MODEL", "gpt-4o")
+            self._available = True
+            logger.info(
+                f"OpenAI client initialized | model={self.model}"
+            )
+        except ImportError:
+            logger.warning(
+                "openai package not installed. "
+                "Run: pip install openai"
+            )
+            self._available = False
+
+    def _init_anthropic(self):
+        """Initialise le client Anthropic."""
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning(
+                "ANTHROPIC_API_KEY not found in .env or environment."
+            )
+            self._available = False
+            return
+
+        try:
+            from anthropic import Anthropic
+            self._client = Anthropic(api_key=api_key)
+            self.model = self.model or os.getenv(
+                "ANTHROPIC_MODEL", "claude-sonnet-4-20250514"
+            )
+            self._available = True
+            logger.info(
+                f"Anthropic client initialized | model={self.model}"
+            )
+        except ImportError:
+            logger.warning(
+                "anthropic package not installed. "
+                "Run: pip install anthropic"
+            )
+            self._available = False
+
+    def _init_ollama(self):
+        """Initialise le client Ollama (local)."""
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.model = self.model or os.getenv("OLLAMA_MODEL", "llama3.2")
+
+        try:
+            from openai import OpenAI
+            self._client = OpenAI(
+                base_url=f"{base_url}/v1",
+                api_key="ollama",  # Ollama accepte n'importe quelle clé
+            )
+            self._available = True
+            logger.info(
+                f"Ollama client initialized | "
+                f"url={base_url} model={self.model}"
+            )
+        except ImportError:
+            logger.warning(
+                "openai package not installed (required for Ollama too). "
+                "Run: pip install openai"
+            )
+            self._available = False
+
+    @property
+    def available(self) -> bool:
+        """Vérifie si le client LLM est disponible."""
+        return self._available
+
+    def query(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        """
+        Envoie une requête au LLM.
+
+        Args:
+            prompt: Le prompt utilisateur
+            system_prompt: Prompt système (utilise MTTV_SYSTEM_PROMPT par défaut)
+            temperature: Température (utilise celle du constructeur par défaut)
+            max_tokens: Max tokens (utilise celle du constructeur par défaut)
+
+        Returns:
+            Réponse textuelle du LLM, ou chaîne vide en cas d'erreur
+        """
+        if not self._available:
+            logger.error("LLM not available — cannot query.")
+            return ""
+
+        if system_prompt is None:
+            system_prompt = self.MTTV_SYSTEM_PROMPT
+
+        temp = temperature if temperature is not None else self.temperature
+        tokens = max_tokens if max_tokens is not None else self.max_tokens
+
+        try:
+            if self.provider == "openai" or self.provider == "ollama":
+                response = self._client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=temp,
+                    max_tokens=tokens,
+                )
+                return response.choices[0].message.content.strip()
+
+            elif self.provider == "anthropic":
+                response = self._client.messages.create(
+                    model=self.model,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=temp,
+                    max_tokens=tokens,
+                )
+                return response.content[0].text.strip()
+
+        except Exception as e:
+            logger.error(f"LLM query failed ({self.provider}/{self.model}): {e}")
+            return ""
+
+    def generate_code_change(
+        self, context: Optional[str] = None
+    ) -> str:
+        """
+        Génère une modification de code proposée.
+
+        Args:
+            context: Contexte additionnel (ex: dernière évaluation)
+
+        Returns:
+            Code ou description du changement proposé
+        """
+        prompt = (
+            "Génère une modification de code pour améliorer l'agent "
+            "Ouroboros-MTTV. La modification doit :\n\n"
+            "1. Être alignée sur les principes MTTV (triade Ψ→B→Φ, "
+            "tétravalence, interface humaine)\n"
+            "2. Améliorer les capacités de l'agent sans le fermer\n"
+            "3. Préserver l'ouverture du système\n"
+            "4. Renforcer le rôle de l'humain comme interface sémantique\n\n"
+            "Retourne UNIQUEMENT le code Python ou la description technique, "
+            "sans commentaires superflus."
+        )
+
+        if context:
+            prompt += f"\n\nContexte additionnel :\n{context}"
+
+        return self.query(prompt)
+
+    def regenerate(
+        self,
+        previous_change: str,
+        evaluation_feedback: str,
+        attempt: int = 1,
+    ) -> str:
+        """
+        Régénère une modification à partir du feedback MTTV.
+
+        Args:
+            previous_change: La modification précédente
+            evaluation_feedback: Feedback de l'évaluation MTTV
+            attempt: Numéro de tentative
+
+        Returns:
+            Nouvelle modification proposée
+        """
+        prompt = (
+            f"La modification suivante a été REJETÉE par la Matrice de "
+            f"Cohérence MTTV (tentative {attempt}) :\n\n"
+            f"```\n{previous_change}\n```\n\n"
+            f"Raison du rejet :\n{evaluation_feedback}\n\n"
+            f"Génère une NOUVELLE modification qui corrige ces problèmes "
+            f"tout en restant alignée sur les principes MTTV. "
+            f"Retourne UNIQUEMENT le code ou la description technique."
+        )
+
+        return self.query(prompt)
 
 
 class OuroborosMTTV:
@@ -70,6 +377,9 @@ class OuroborosMTTV:
         max_retries: int = 3,
         pr_mode: bool = True,
         llm: Optional[Any] = None,
+        llm_provider: Optional[str] = None,
+        llm_model: Optional[str] = None,
+        temperature: float = 0.7,
     ):
         """
         Initialise l'agent Ouroboros-MTTV.
@@ -82,7 +392,11 @@ class OuroborosMTTV:
             reject_threshold: Seuil de rejet
             max_retries: Nombre max de tentatives de regénération
             pr_mode: Si True, soumet les changements via PR (human-in-the-loop)
-            llm: Instance LLM pour les requêtes (Prompt-Ancre)
+            llm: Instance LLM externe (compatible .query(prompt) -> str)
+            llm_provider: Fournisseur LLM ("openai", "anthropic", "ollama")
+                          Si None, lu depuis .env
+            llm_model: Nom du modèle LLM. Si None, lu depuis .env
+            temperature: Température pour la génération LLM (0.0-1.0)
         """
         self.anchors_path = anchors_path
         self.model_name = model_name
@@ -91,7 +405,35 @@ class OuroborosMTTV:
         self.reject_threshold = reject_threshold
         self.max_retries = max_retries
         self.pr_mode = pr_mode
-        self.llm = llm
+
+        # Initialiser le client LLM
+        if llm is not None:
+            # Utiliser une instance LLM externe fournie par l'utilisateur
+            self.llm_client = llm
+            logger.info("Using external LLM instance.")
+        else:
+            # Initialiser le client LLM interne depuis .env
+            try:
+                self.llm_client = LLMClient(
+                    provider=llm_provider,
+                    model=llm_model,
+                    temperature=temperature,
+                )
+                if self.llm_client.available:
+                    logger.info(
+                        f"LLM client initialized | "
+                        f"provider={self.llm_client.provider} "
+                        f"model={self.llm_client.model}"
+                    )
+                else:
+                    logger.warning(
+                        "LLM client not available. "
+                        "Check .env configuration. "
+                        "Falling back to placeholder responses."
+                    )
+            except Exception as e:
+                self.llm_client = None
+                logger.error(f"Failed to initialize LLM client: {e}")
 
         # Initialiser l'évaluateur MTTV
         if MTTV_AVAILABLE:
@@ -114,11 +456,17 @@ class OuroborosMTTV:
         # Charger la configuration MTTV
         self._load_mttv_config()
 
+        llm_status = (
+            f"llm={self.llm_client.provider}/{self.llm_client.model}"
+            if self.llm_client and getattr(self.llm_client, 'available', False)
+            else "llm=no"
+        )
         logger.info(
             f"Ouroboros-MTTV initialized | "
             f"MTTV={'yes' if MTTV_AVAILABLE else 'no'} | "
             f"PR mode={'yes' if pr_mode else 'no'} | "
-            f"retries={max_retries}"
+            f"retries={max_retries} | "
+            f"{llm_status}"
         )
 
     def _load_mttv_config(self):
@@ -178,7 +526,7 @@ class OuroborosMTTV:
             # ── Étape 2 : Prompt-Ancre ─────────────────────────────────
             anchor_passed, anchor_response = self.evaluator.prompt_anchor_check(
                 proposed_change,
-                llm_query_func=self.llm_query if self.llm else None,
+                llm_query_func=self.llm_query if self.llm_available else None,
             )
 
             if not anchor_passed:
@@ -223,28 +571,60 @@ class OuroborosMTTV:
         logger.warning("Running unconstrained evolution (MTTV not available)")
         return self._apply_change(proposed_change, None)
 
+    # ── Propriétés LLM ─────────────────────────────────────────────────────
+
+    @property
+    def llm_available(self) -> bool:
+        """Vérifie si le client LLM est disponible pour les requêtes."""
+        if self.llm_client is None:
+            return False
+        if hasattr(self.llm_client, 'available'):
+            return self.llm_client.available
+        return True  # Instance externe, on suppose qu'elle fonctionne
+
     # ── Génération et Régénération ───────────────────────────────────────
 
     def generate_code_change(self) -> str:
         """
-        Génère une modification de code proposée.
+        Génère une modification de code proposée via le LLM.
 
-        Dans Ouroboros original, cette méthode utilise le LLM pour proposer
-        une amélioration du code. À implémenter selon le framework.
+        Utilise le LLM configuré (OpenAI, Anthropic, ou Ollama) pour générer
+        une proposition d'amélioration de code alignée sur les principes MTTV.
 
         Returns:
             Description textuelle ou diff du changement proposé
         """
-        # TODO: Remplacer par l'appel LLM d'Ouroboros original
-        # Pour l'instant, retourne un placeholder
-        logger.info("Generating code change proposal...")
-        return "def example_improvement():\n    pass"
+        logger.info("Generating code change proposal via LLM...")
+
+        if not self.llm_available:
+            logger.warning(
+                "LLM not available. Using placeholder response."
+            )
+            return "def example_improvement():\n    pass"
+
+        try:
+            # Utiliser la méthode generate_code_change du LLMClient
+            if hasattr(self.llm_client, 'generate_code_change'):
+                return self.llm_client.generate_code_change()
+            else:
+                # Instance LLM externe : construire le prompt manuellement
+                prompt = (
+                    "Génère une modification de code pour améliorer l'agent "
+                    "Ouroboros-MTTV. La modification doit être alignée sur "
+                    "les principes MTTV (triade Ψ→B→Φ, tétravalence, "
+                    "interface humaine). Retourne UNIQUEMENT le code."
+                )
+                return self.llm_client.query(prompt)
+        except Exception as e:
+            logger.error(f"LLM code generation failed: {e}")
+            return "def fallback_improvement():\n    pass"
 
     def regenerate(
         self, previous_change: str, previous_evaluation: Dict
     ) -> str:
         """
-        Régénère une modification en tenant compte de l'évaluation MTTV.
+        Régénère une modification via le LLM en tenant compte de l'évaluation
+        MTTV et des raisons du rejet.
 
         Args:
             previous_change: La modification précédente rejetée
@@ -253,25 +633,82 @@ class OuroborosMTTV:
         Returns:
             Nouvelle modification proposée
         """
-        # TODO: Utiliser le LLM pour régénérer avec les contraintes MTTV
         logger.info(
-            f"Regenerating (attempt {self.retry_count + 1}/{self.max_retries})"
+            f"Regenerating via LLM "
+            f"(attempt {self.retry_count + 1}/{self.max_retries})"
         )
-        return f"def regenerated_improvement_v{self.retry_count}():\n    pass"
+
+        if not self.llm_available:
+            logger.warning(
+                "LLM not available. Using placeholder regeneration."
+            )
+            return (
+                f"def regenerated_improvement_v{self.retry_count}():\n"
+                f"    pass"
+            )
+
+        # Construire le feedback à partir de l'évaluation
+        rejection_reason = previous_evaluation.get(
+            "best_rejection_criterion",
+            "Non spécifié"
+        )
+        score = previous_evaluation.get("score", 0.0)
+        decision = previous_evaluation.get("decision", "unknown")
+        viability = previous_evaluation.get(
+            "best_viability_criterion", "Non spécifié"
+        )
+
+        try:
+            # Utiliser la méthode regenerate du LLMClient
+            if hasattr(self.llm_client, 'regenerate'):
+                feedback = (
+                    f"Score MTTV : {score:.4f}\n"
+                    f"Décision : {decision}\n"
+                    f"Meilleur critère de viabilité : {viability}\n"
+                    f"Raison du rejet : {rejection_reason}"
+                )
+                return self.llm_client.regenerate(
+                    previous_change=previous_change,
+                    evaluation_feedback=feedback,
+                    attempt=self.retry_count + 1,
+                )
+            else:
+                prompt = (
+                    f"La modification suivante a été REJETÉE "
+                    f"(score={score:.4f}, décision={decision}) :\n\n"
+                    f"```\n{previous_change}\n```\n\n"
+                    f"Raison : {rejection_reason}\n\n"
+                    f"Génère une NOUVELLE modification qui corrige cela."
+                )
+                return self.llm_client.query(prompt)
+        except Exception as e:
+            logger.error(f"LLM regeneration failed: {e}")
+            return (
+                f"def fallback_regeneration_v{self.retry_count}():\n"
+                f"    pass"
+            )
 
     def llm_query(self, prompt: str) -> str:
         """
-        Interroge le LLM. À adapter selon le framework Ouroboros.
+        Interroge le LLM configuré.
 
         Args:
             prompt: Le prompt à envoyer
 
         Returns:
-            Réponse du LLM
+            Réponse du LLM, ou chaîne vide si indisponible
         """
-        if self.llm is not None:
-            return self.llm.query(prompt)
-        return ""
+        if not self.llm_available:
+            logger.warning("LLM not available for query.")
+            return ""
+
+        try:
+            if hasattr(self.llm_client, 'query'):
+                return self.llm_client.query(prompt)
+            return self.llm_client.query(prompt)
+        except Exception as e:
+            logger.error(f"LLM query failed: {e}")
+            return ""
 
     # ── Application des Changements ───────────────────────────────────────
 
@@ -547,7 +984,28 @@ def main():
         "--model",
         type=str,
         default="all-MiniLM-L6-v2",
-        help="Modèle sentence-transformers",
+        help="Modèle sentence-transformers pour l'évaluation MTTV",
+    )
+
+    # ── Arguments LLM ────────────────────────────────────────────────────
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default=None,
+        choices=["openai", "anthropic", "ollama"],
+        help="Fournisseur LLM (sinon lu depuis .env)",
+    )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default=None,
+        help="Nom du modèle LLM (sinon lu depuis .env)",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.7,
+        help="Température du LLM (0.0-1.0)",
     )
 
     args = parser.parse_args()
@@ -556,6 +1014,9 @@ def main():
         max_retries=args.retries,
         pr_mode=not args.no_pr,
         model_name=args.model,
+        llm_provider=args.llm_provider,
+        llm_model=args.llm_model,
+        temperature=args.temperature,
     )
 
     if args.mode == "evolve":
@@ -572,6 +1033,13 @@ def main():
         print("\n" + "=" * 60)
         print("OUROBOROS-MTTV STATUS")
         print("=" * 60)
+        if agent.llm_available:
+            print(f"  LLM Provider : {agent.llm_client.provider}")
+            print(f"  LLM Model    : {agent.llm_client.model}")
+            print(f"  LLM Status   : ✅ Available")
+        else:
+            print(f"  LLM Status   : ❌ Not available (check .env)")
+        print()
         print(json.dumps(summary, indent=2, ensure_ascii=False))
         print("=" * 60)
 
