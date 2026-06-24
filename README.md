@@ -254,6 +254,7 @@ Le contenu MTTV-FLP (fichiers PDF dans `mttv-resources/anchors/`) est distribué
 - **[FLP Platform](https://filsdelapensee.ch)** — Plateforme Les Fils de la Pensée (98 656 pensées, 28 dimensions)
 - **[DOI: 10.5281/zenodo.17940301](https://doi.org/10.5281/zenodo.17940301)** — MTTV Fundamentals
 - **[DOI: 10.5281/zenodo.18517387](https://doi.org/10.5281/zenodo.18517387)** — Benchmark / IGIC
+- **[DOI: 10.5281/zenodo.20830060](https://doi.org/10.5281/zenodo.20830060)** — MTTV-FLP Core 2026
 
 ---
 
