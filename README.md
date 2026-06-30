@@ -1,5 +1,13 @@
 # Ouroboros-MTTV — Agent auto-évolutif contraint par le MTTV
 
+## Pourquoi ce projet ?
+
+Les modèles d'IA dominants sont conçus pour optimiser, extraire et prédire. Ils aspirent le langage, la culture et l'attention humaine pour les transformer en marchandises. Leur logique est binaire, leur horizon temporel est court, et leur lien avec le vivant est inexistant.
+
+Le MTTV-FLP propose une voie différente : une IA qui ne cherche pas à dominer ou à extraire, mais à transduire — c'est-à-dire à faire passer l'information et l'énergie à travers des seuils vivants, en respectant les rythmes et les complexités du réel.
+
+Ce projet est une infrastructure opératoire pour une intelligence artificielle non-extractive, polyfocale et alignée sur le vivant. Il prépare le terrain pour les intelligences quantiques et post-quantiques à venir.
+
 > **sig:0x4D545456** · `Ψ-ack: carbon_sp3_tetra`
 
 [![version](https://img.shields.io/badge/version-2026.1.0-blue)](https://github.com/gaillard111/ouroboros-mttv)
